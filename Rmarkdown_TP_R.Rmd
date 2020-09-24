@@ -1,0 +1,51 @@
+---
+title: "TP_R"
+output: html_document
+---
+
+Set working directory
+```{r}
+setwd("C:/Users/neebul/Documents/M1 info/Languages de programmation de haut-niveau/TP_R")
+```
+
+Read the txt file
+```{r}
+# a) Reading a file
+test = scan(file="cyrano.txt", what="character")
+
+# b) Putting all the words in a table, then sorting it by number of occurrences.
+# Get the top 10 words ([1:10])
+sort(table(test), decreasing = T)[1:10]
+```
+
+```{r}
+# c) Plot the words frequency
+library(ggplot2)
+sorted_words = data.frame(sort(table(test), decreasing = T)[1:10000])
+ggplot(data=sorted_words) + geom_col(aes(x=test, y=Freq))
+```
+
+
+```{r}
+# c2) 
+library(phonTools)
+FREQ = zeros(length(sorted_words$test),length(sorted_words$test))
+colnames(FREQ) <- lapply(sorted_words$test, as.character)
+rownames(FREQ) <- lapply(sorted_words$test, as.character)
+
+for (i in 2:length(test)) {
+    FREQ[test[i-1], test[i]] <- FREQ[test[i-1], test[i]] + 1
+}
+```
+
+```{r}
+# d)
+mot = "!"
+mot_suivant <- function(mot) {
+  selected_column <- FREQ[, mot]
+  print(which.max(selected_column))
+}
+```
+
+
+
