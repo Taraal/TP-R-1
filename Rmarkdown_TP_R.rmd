@@ -1,0 +1,198 @@
+---
+title: "TP_R"
+output: html_document
+---
+
+1- APPRENTISSAGE
+
+A)
+
+Set working directory
+```{r}
+# setwd("C:/Users/neebul/Documents/M1 info/Languages de programmation de haut-niveau/TP-R-1")
+# setwd("/home/sylouan/Documents/ATAL/Langages de programmation/TP/TP1")
+```
+
+Read the txt file
+```{r}
+# a) Reading a file
+getwd()
+test = scan(file="cyrano.txt", what="character", fileEncoding = "UTF-8")
+test = gsub(pattern = '[[:punct:] ]+', replacement = '', x = test) # remove the punctuation, because we just want the words
+test = test[test != ''] # Remove the blank spaces obtained with the previous step, so that we just keep the words
+```
+
+
+B)
+
+```{r}
+# Putting all the words in a table, then sorting it by number of occurrences.
+# Get the top 10 words ([1:10])
+sort(table(test), decreasing = T)[1:10]
+```
+
+
+C)
+
+```{r}
+# Plot the words frequency
+library(tidyverse)
+library(zoo)
+sorted_words = data.frame(sort(table(test), decreasing = T))
+
+tenBinsData = rollapply(sorted_words$Freq, width=round((length(sorted_words$Freq)-10)/10), by=round((length(sorted_words$Freq)-10)/10), FUN=sum) # On groupe les mots en 10 sous-groupes par ordre de fréquence
+tenBinsData = data.frame(cbind(c(1:10), tenBinsData))
+colnames(tenBinsData) = c("Bins", "Number_of_occurences")
+
+# Les bins deviennent des facteurs (pour qu'elles ne soient plus considérées comme des valeurs numériques, ce qui permet une représentation plus propre sur le graphique)
+tenBinsData$Bins <- factor(tenBinsData$Bins, levels = tenBinsData$Bins[order(tenBinsData$Bins)])
+
+ggplot(data=tenBinsData) + geom_col(aes(x=Bins, y=Number_of_occurences)) + labs(title = "Nombres cumulé d'occurences des mots, répartis en 10 sous-\ngroupes en fonction de leur fréquence d'apparition", x = "Sous-groupes", y = "Nombres d'occurences") # On plot le nombre d'occurences des 10 sous-groupes
+```
+
+
+C2)
+
+```{r}
+library(phonTools)
+
+# première méthode (environ 4-5 secondes) : sur la matrice, on sélection l'intersection entre le mot précédent et le mot suivant, et on y ajoute un +1
+FREQ = zeros(length(sorted_words$test),length(sorted_words$test))
+colnames(FREQ) <- lapply(sorted_words$test, as.character)
+rownames(FREQ) <- lapply(sorted_words$test, as.character)
+
+for (i in 2:length(test)) {
+    FREQ[test[i-1], test[i]] <- FREQ[test[i-1], test[i]] + 1
+}
+
+
+# deuxième méthode (environ 6-7 secondes) : la même chose mais au lieu d'utiliser le texte de base, on créer un dataframe avec une colonne "mot précédent" et une colonne "mot suivant"
+FREQ2 = zeros(length(sorted_words$test),length(sorted_words$test))
+colnames(FREQ2) <- lapply(sorted_words$test, as.character)
+rownames(FREQ2) <- lapply(sorted_words$test, as.character)
+
+following_words <- data.frame(cbind(test[1:length(test)-1], test[2:length(test)]))
+for (i in 1:length(test)-1) {
+    FREQ2[following_words[i,1], following_words[i, 2]] <- FREQ2[following_words[i,1], following_words[i, 2]] + 1
+}
+```
+
+
+D)
+
+```{r}
+mot_suivant <- function(mot) {
+  selected_line <- FREQ[as.character(mot), ]
+  best_column <- which.max(selected_line) # on trouve l'indice de colonne du mot suivant le plus fréquent
+  bla <- sorted_words$test[best_column] # on utilise l'indice trouvé pour sélectionner le mot dans la liste frequent_words
+  return(bla)
+}
+```
+
+
+E)
+```{r}
+random_word = test[round(runif(min=1, max=length(test), n=1), digits=0)]
+
+T_a<-Sys.time()
+bla <- mot_suivant(random_word)
+T_b<-Sys.time()
+
+Tdiff= difftime(T_b, T_a)
+print(Tdiff)
+```
+
+
+F)
+
+```{r}
+library(gdata)
+
+minimum_freq = 10 # fréquence minimum pour qu'un mot soit intégré à MINIFREQ
+frequent_words <- sorted_words$test[sorted_words$Freq>=minimum_freq] # indices des mots dont la fréquence est supérieure ou égale à minimum_freq
+frequent_words <- as.character(frequent_words)
+MINIFREQ <- FREQ[frequent_words, frequent_words]
+```
+
+
+G)
+
+```{r}
+library(rlist)
+
+# fonction mot_suivant pour MINIFREQ
+mot_suivant2 <- function(mot) {
+  selected_line <- MINIFREQ[as.character(mot), ]
+  best_column <- which.max(selected_line)
+  bla2 <- frequent_words[best_column]
+  return(bla2)
+}
+
+# on crée une liste de 10 000 mots aléatoires qui se trouvent à la fois dans FREQ et dans MINIFREQ
+random_words_list <- list()
+for (i in 1:10000) {
+  random_word = frequent_words[round(runif(min=1,max=length(frequent_words), n=1), digits=0)]
+  random_words_list <- list.append(random_words_list, as.character(random_word))
+  
+}
+
+# fonction qui run mot_suivant 10 000 fois avec des mots aléatoires (identiques à ceux utilisés pour FREQ100 après)
+MINIFREQ100 <- function() {
+  Mots_trouves = list()
+  for (random_word in random_words_list) {
+    bla2 <- mot_suivant2(as.character(random_word))
+    Mots_trouves <- list.append(Mots_trouves, bla2)
+  }
+  return(Mots_trouves)
+}
+
+# fonction qui run mot_suivant 10 000 fois avec des mots aléatoires (identiques à ceux utilisés pour MINIFREQ100 avant)
+FREQ100 <- function() {
+  Mots_trouves = list()
+  for (random_word in random_words_list) {
+    bla <- mot_suivant(random_word)
+    Mots_trouves <- list.append(Mots_trouves, bla)
+  }
+  return(Mots_trouves)
+}
+
+# Le calcul du temps d'exécution des fonctions mot_suivant dans une boucle for nous donnait des résultats de 0 seconde. On lance donc les fonction un grand nombre de fois (10 000) et on compare leur temps d'exécution sur ce grand nombre d'exécutions. 
+T1<-Sys.time()
+Mots_MINIFREQ <- MINIFREQ100()
+T2<-Sys.time()
+Tdiff_MINIFREQ = difftime(T2, T1)
+
+T3<-Sys.time()
+Mots_FREQ <- FREQ100()
+T4<-Sys.time()
+Tdiff_FREQ = difftime(T4, T3)
+
+Summary_Tdiff <- data.frame(c("FREQ", "MINIFREQ"), c(Tdiff_FREQ, Tdiff_MINIFREQ))
+colnames(Summary_Tdiff) <- c("matrices", "temps_exécution")
+
+# Représentation sous forme de graphique des résultats précédemment obtenus
+library(tidyverse)
+ggplot(data=Summary_Tdiff) + geom_col(aes(x=matrices, y=temps_exécution)) + labs(title = "Temps de 10 000 exécutions de la fonction mot_suivant, en \nfonction de la matrice utilisée", x = "Matrices", y = "Temps d'exécution (s)")
+```
+
+
+E2)
+
+```{r}
+# On met FREQ sous forme de matrice de probabilité
+somme_next_words <- apply(FREQ, 1, sum)
+matrice_prob <- FREQ/somme_next_words
+
+# On crée une fonction qui nous donne la probabilité qu'a chaque mot de suivre deux mots donnés (qui se suivent)
+prob_2_precedents <- function(mot1, mot2) {
+  prob1 <- matrice_prob[mot1, mot2]
+  prob2 <- matrice_prob[mot2, ]
+  return(prob1*prob2)
+}
+
+# MAIS ON PREND AUSSI EN COMPTE LA PROBABILITE QU'A LE DEUXIEME MOT DE SUIVRE LE PREMIER, or ce n'est pas exactement ce que l'on cherche. 
+
+# Pour éviter cela et n'obtenir que la probabilité qu'un mot suive une suite de deux mots, on doit faire une nouvelle matrice. 
+# La matrice aurait en x les couples de mots (qui se suivent dans le texte) et en y les mots du texte. Aux intersections on trouverait le nombre de fois qu'un mot y suit un couple de mots x
+```
+
